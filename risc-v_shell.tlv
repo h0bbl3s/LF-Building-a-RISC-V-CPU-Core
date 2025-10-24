@@ -26,6 +26,8 @@
    m4_asm(ADD, x14, x13, x14)           // Incremental summation
    m4_asm(ADDI, x13, x13, 1)            // Increment loop count by 1
    m4_asm(BLT, x13, x12, 1111111111000) // If a3 is less than a2, branch to label named <loop>
+   // testing adding to x0
+   // m4_asm(ADDI, x0, x13, 1)
    // Test result value in x14, and set x31 to reflect pass/fail.
    m4_asm(ADDI, x30, x14, 111111010100) // Subtract expected value of 44 to set x30 to 1 if and only iff the result is 45 (1 + 2 + ... + 9).
    m4_asm(BGE, x0, x0, 0) // Done. Jump to itself (infinite loop). (Up to 20-bit signed immediate plus implicit 0 bit (unlike JALR) provides byte address; last immediate bit should also be 0)
@@ -89,11 +91,9 @@
                    $is_s_instr ||
                    $is_b_instr;
                    
-   $rd_valid = $is_r_instr ||
-               $is_i_instr ||
-               $is_u_instr ||
-               $is_j_instr;
+   $rd_valid = ($is_r_instr || $is_i_instr || $is_u_instr || $is_j_instr) && ( $rd != 5'b00000 );
    
+   // saw someone else use simply, != $is_r_instr
    $imm_valid = $is_u_instr ||
                 $is_j_instr ||
                 $is_i_instr ||
@@ -101,18 +101,42 @@
                 $is_b_instr;
                 
    // handle the I-Types
-   $imm[31:0] = $is_i_instr ? {  {21{$instr[31]}},  $instr[30:20]  } :
-                $is_s_instr ? {  {21{$instr[31]}},  $instr[30:25], $instr[11:8], $instr[7]  }   :
-                
+   $imm[31:0] = $is_i_instr ? { {21{$instr[31]}}, $instr[30:20] } :
+                $is_s_instr ? { {21{$instr[31]}}, $instr[30:25], $instr[11:8], $instr[7]  } :
+                $is_b_instr ? { {20{$instr[31]}}, $instr[7], $instr[30:25],  $instr[11:8],  1'b0  } :
+                $is_u_instr ? { {1{$instr[31]}}, $instr[30:20], $instr[19:12],  12'b0  } :
+                $is_j_instr ? { {12{$instr[31]}}, $instr[19:12], $instr[20],  $instr[30:25],  $instr[24:21], 1'b0  } :
                               32'b0;  // Default    
    
+   // figure out exact instruction
+   $dec_bits[10:0] = {$instr[30],$funct3,$opcode};
+   
+   // set up some happy little decodes :)
+   $is_beq = $dec_bits ==? 11'bx_000_1100011;
+   $is_bne = $dec_bits ==? 11'bx_001_1100011;
+   $is_blt = $dec_bits ==? 11'bx_100_1100011;
+   $is_bge = $dec_bits ==? 11'bx_101_1100011;
+   $is_bltu = $dec_bits ==? 11'bx_110_1100011;
+   $is_bgeu = $dec_bits ==? 11'bx_111_1100011;
+   $is_addi = $dec_bits ==? 11'bx_000_0010011;
+   $is_add = $dec_bits == 11'b0_000_0110011;
+   
+   //setup ALU
+   $result[31:0] = $is_addi ? $src1_value + $imm :
+                   $is_add ? $src1_value + $src2_value :
+                   32'b0;
+   
    // Suppress warnings
-   `BOGUS_USE($rd $rd_valid $rs1 $rs1_valid $funct3 $funct3_valid $imm_valid $opcode $rs2 $rs2_valid) 
+   `BOGUS_USE($rd $rd_valid $rs1 $rs1_valid $funct3 $funct3_valid)
+   `BOGUS_USE($imm_valid $opcode $rs2 $rs2_valid $imm $is_add $is_addi)
+   `BOGUS_USE($is_beq $is_bge $is_bgeu $is_blt $is_bltu $is_bne)
    // Assert these to end simulation (before Makerchip cycle limit).
    *passed = 1'b0;
    *failed = *cyc_cnt > M4_MAX_CYC;
    
+   // original for comparison
    //m4+rf(32, 32, $reset, $wr_en, $wr_index[4:0], $wr_data[31:0], $rd_en1, $rd_index1[4:0], $rd_data1, $rd_en2, $rd_index2[4:0], $rd_data2)
+   m4+rf(32, 32, $reset, $rd_valid, $rd[4:0], $result[31:0], $rs1_valid, $rs1[4:0], $src1_value, $rs2_valid, $rs2[4:0], $src2_value)
    //m4+dmem(32, 32, $reset, $addr[4:0], $wr_en, $wr_data[31:0], $rd_en, $rd_data)
    m4+cpu_viz()
 \SV
