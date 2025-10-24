@@ -50,7 +50,9 @@
    
    // Program Counter
    $pc[31:0] = >>1$next_pc;
-   $next_pc[31:0] = $reset ? 32'b0 : $pc + 1;
+   $next_pc[31:0] = $reset ? 32'b0 : 
+                    $taken_br ? $br_tgt_pc :
+                    $pc + 4;
    
    // IMEM  using a Verilog macro
    
@@ -91,7 +93,7 @@
                    $is_s_instr ||
                    $is_b_instr;
                    
-   $rd_valid = ($is_r_instr || $is_i_instr || $is_u_instr || $is_j_instr) && ( $rd != 5'b00000 );
+   $rd_valid = ($is_r_instr || $is_i_instr || $is_u_instr || $is_j_instr) && ( $rd != 5'b00000 ); // can't have a destination of x0!
    
    // saw someone else use simply, != $is_r_instr
    $imm_valid = $is_u_instr ||
@@ -121,10 +123,22 @@
    $is_addi = $dec_bits ==? 11'bx_000_0010011;
    $is_add = $dec_bits == 11'b0_000_0110011;
    
-   //setup ALU
+   // setup ALU
    $result[31:0] = $is_addi ? $src1_value + $imm :
                    $is_add ? $src1_value + $src2_value :
                    32'b0;
+                   
+   // setup branches
+   $taken_br = $is_beq ? $src1_value == $src2_value :
+               $is_bne ? $src1_value != $src2_value :
+               $is_blt ? ($src1_value < $src2_value) ^ ($src1_value[31] != $src2_value[31]) :
+               $is_bge ? ($src1_value >= $src2_value) ^ ($src1_value[31] != $src2_value[31]) :
+               $is_bltu ? $src1_value < $src2_value :
+               $is_bgeu ? $src1_value >= $src2_value :
+               1'b0;
+   
+   // what to do with the branches? 
+   $br_tgt_pc[31:0] = $pc + $imm;
    
    // Suppress warnings
    `BOGUS_USE($rd $rd_valid $rs1 $rs1_valid $funct3 $funct3_valid)
