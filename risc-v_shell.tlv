@@ -184,6 +184,8 @@
                                  {31'b0, $src1_value[31]} ) :
                    $is_sra ? $sra_rslt[31:0] :
                    $is_srai ? $srai_rslt[31:0] :
+                   $is_load ? $src1_value + $imm : // add loads and store address
+                   $is_s_instr ? $src1_value + $imm :
                    32'b0;
    
    // more ALU logic from chapter 5
@@ -210,6 +212,16 @@
    // what to do with the branches? 
    $br_tgt_pc[31:0] = $pc + $imm;
    
+   // lets add loads
+   // add = rs1 + imm
+   // LOAD rd, imm(rs1)
+   // rd <= DMem[addr] (where, addr = rs1 + imm)
+   // stores?
+   // STORE rs2, imm(rs1)
+   // DMem[addr] <= rs2 (where, addr = rs1 + imm)
+   
+   
+   
    // Suppress warnings
    `BOGUS_USE($rd $rd_valid $rs1 $rs1_valid $funct3 $funct3_valid)
    `BOGUS_USE($imm_valid $opcode $rs2 $rs2_valid $imm $is_add $is_addi)
@@ -227,8 +239,10 @@
    
    // original for comparison
    //m4+rf(32, 32, $reset, $wr_en, $wr_index[4:0], $wr_data[31:0], $rd_en1, $rd_index1[4:0], $rd_data1, $rd_en2, $rd_index2[4:0], $rd_data2)
-   m4+rf(32, 32, $reset, $rd_valid, $rd[4:0], $result[31:0], $rs1_valid, $rs1[4:0], $src1_value, $rs2_valid, $rs2[4:0], $src2_value)
+   m4+rf(32, 32, $reset, $rd_valid, $rd[4:0], $is_load ? $ld_data : $result[31:0], $rs1_valid, $rs1[4:0], $src1_value, $rs2_valid, $rs2[4:0], $src2_value)
+   // original for comparison
    //m4+dmem(32, 32, $reset, $addr[4:0], $wr_en, $wr_data[31:0], $rd_en, $rd_data)
+   m4+dmem(32, 32, $reset, $result[6:2], $is_s_instr, $src2_value, $is_load, $ld_data) // $result[6:2] because the lowest 2 bits are expected to be 0
    m4+cpu_viz()
 \SV
    endmodule
