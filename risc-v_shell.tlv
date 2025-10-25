@@ -1,11 +1,12 @@
 \m4_TLV_version 1d: tl-x.org
 \SV
-   // This code can be found in: https://github.com/stevehoover/LF-Building-a-RISC-V-CPU-Core/risc-v_shell.tlv
-   
+   // The original code can be found in: https://github.com/stevehoover/LF-Building-a-RISC-V-CPU-Core/risc-v_shell.tlv
+   // This version is my personal coursework
+
    m4_include_lib(['https://raw.githubusercontent.com/stevehoover/LF-Building-a-RISC-V-CPU-Core/main/lib/risc-v_shell_lib.tlv'])
 
 
-
+   // this is from the chapter 4 part
    //---------------------------------------------------------------------------------
    // /====================\
    // | Sum 1 to 9 Program |
@@ -37,6 +38,7 @@
    // m4_define(['M4_MAX_CYC'], 50)
    //---------------------------------------------------------------------------------
 
+   // added for chapter 5                
    m4_test_prog()
 
 
@@ -162,14 +164,14 @@
                    $is_andi ? $src1_value & $imm :
                    $is_ori ? $src1_value | $imm :
                    $is_xori ? $src1_value ^ $imm :
-                   $is_slli ? $src1_value << $imm[5:0] : // the ref sheet says [0:4] here
-                   $is_srli ? $src1_value >> $imm[5:0] : // same here
+                   $is_slli ? $src1_value << $imm[4:0] : // the course says [5:0] (which works)
+                   $is_srli ? $src1_value >> $imm[4:0] : // same here, ref sheet says [4:0], 
                    $is_and ? $src1_value & $src2_value :
                    $is_or ? $src1_value | $src2_value :
                    $is_xor ? $src1_value ^ $src2_value :
                    $is_sub ? $src1_value - $src2_value :
                    $is_sll ? $src1_value << $src2_value[4:0] : // doesn't match ref sheet
-                   $is_srl ? $src1_value >> $src2_value[4:0] : // same here
+                   $is_srl ? $src1_value >> $src2_value[4:0] : // same here *found out the ref sheet is psuedocode*
                    $is_sltu ? $sltu_rslt :
                    $is_sltiu ? $sltiu_rslt :
                    $is_lui ? {$imm[31:12], 12'b0} :
@@ -234,7 +236,7 @@
    // commenting out the next line following the course
    // *passed = 1'b0;
    // adding this line per the course
-   m4+tb() 
+   m4+tb()
    *failed = *cyc_cnt > M4_MAX_CYC;
    
    // original for comparison
