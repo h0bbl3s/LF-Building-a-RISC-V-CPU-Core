@@ -54,8 +54,12 @@
    // Program Counter
    $pc[31:0] = >>1$next_pc;
    $next_pc[31:0] = $reset ? 32'b0 :
-                    $taken_br ? $br_tgt_pc :
+                    $taken_br || $is_jal ? $br_tgt_pc :
+                    $is_jalr ? $jalr_tgt_pc :
                     $pc + 4;
+   
+   // jalr computation
+   $jalr_tgt_pc[31:0] = $src1_value + $imm;
    
    // IMEM  using a Verilog macro
    
@@ -132,13 +136,13 @@
    $is_jal = $opcode == 7'b1101111;
    $is_jalr = $dec_bits ==? 11'bx_000_1100111;
    $is_slti = $dec_bits ==? 11'bx_010_0010011;
-   $is_sltui = $dec_bits ==? 11'bx_011_0010011;
+   $is_sltiu = $dec_bits ==? 11'bx_011_0010011;
    $is_xori = $dec_bits ==? 11'bx_100_0010011;
    $is_ori = $dec_bits ==? 11'bx_110_0010011;
    $is_andi = $dec_bits ==? 11'bx_111_0010011;
    $is_slli = $dec_bits == 11'b0_001_0010011;
    $is_srli = $dec_bits == 11'b0_101_0010011;
-   $is_sral = $dec_bits == 11'b1_101_0010011;
+   $is_srai = $dec_bits == 11'b1_101_0010011;
    $is_sub = $dec_bits == 11'b1_000_0110011;
    $is_sll = $dec_bits == 11'b0_001_0110011;
    $is_slt = $dec_bits == 11'b0_010_0110011;
@@ -146,6 +150,7 @@
    $is_xor = $dec_bits == 11'b0_100_0110011;
    $is_srl = $dec_bits == 11'b0_101_0110011;
    $is_sra = $dec_bits == 11'b1_101_0110011;
+
    $is_or = $dec_bits == 11'b0_110_0110011;
    $is_and = $dec_bits == 11'b0_111_0110011;
    
@@ -153,7 +158,32 @@
    
    // setup ALU
    $result[31:0] = $is_addi ? $src1_value + $imm :
-                   $is_add ? $src1_value + $src2_value :
+                   $is_add ? $src1_value + $src2_value : // after this is chapter 5
+                   $is_andi ? $src1_value & $imm :
+                   $is_ori ? $src1_value | $imm :
+                   $is_xori ? $src1_value ^ $imm :
+                   $is_slli ? $src1_value << $imm[5:0] : // the ref sheet says [0:4] here
+                   $is_srli ? $src1_value >> $imm[5:0] : // same here
+                   $is_and ? $src1_value & $src2_value :
+                   $is_or ? $src1_value | $src2_value :
+                   $is_xor ? $src1_value ^ $src2_value :
+                   $is_sub ? $src1_value - $src2_value :
+                   $is_sll ? $src1_value << $src2_value[4:0] : // doesn't match ref sheet
+                   $is_srl ? $src1_value >> $src2_value[4:0] : // same here
+                   $is_sltu ? $sltu_rslt :
+                   $is_sltiu ? $sltiu_rslt :
+                   $is_lui ? {$imm[31:12], 12'b0} :
+                   $is_auipc ? $pc + $imm :
+                   $is_jal ? $pc + 32'd4 : // i'll have to fix pc
+                   $is_jalr ? $pc + 32'd4: // and here
+                   $is_slt ? ( ($src1_value[31] == $src2_value[31]) ?
+                                $sltu_rslt :
+                                {31'b0, $src1_value[31]} ) :
+                   $is_slti ? ( ($src1_value[31] == $imm[31]) ?
+                                 $sltiu_rslt :
+                                 {31'b0, $src1_value[31]} ) :
+                   $is_sra ? $sra_rslt[31:0] :
+                   $is_srai ? $srai_rslt[31:0] :
                    32'b0;
    
    // more ALU logic from chapter 5
@@ -184,6 +214,10 @@
    `BOGUS_USE($rd $rd_valid $rs1 $rs1_valid $funct3 $funct3_valid)
    `BOGUS_USE($imm_valid $opcode $rs2 $rs2_valid $imm $is_add $is_addi)
    `BOGUS_USE($is_beq $is_bge $is_bgeu $is_blt $is_bltu $is_bne)
+   `BOGUS_USE($is_and $is_andi $is_auipc $is_jal $is_jalr $is_load)
+   `BOGUS_USE($is_lui $is_or $is_ori $is_sll $is_slli $is_slt $is_slti)
+   `BOGUS_USE($is_sltiu $is_sra $is_srai $is_srl $is_srli $is_sub $is_xor)
+   `BOGUS_USE($is_xori $sltiu_rslt $sltu_rslt $sra_rslt $srai_rslt)
    // Assert these to end simulation (before Makerchip cycle limit).
    // commenting out the next line following the course
    // *passed = 1'b0;
