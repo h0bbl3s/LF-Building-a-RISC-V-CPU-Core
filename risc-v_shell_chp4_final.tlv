@@ -19,25 +19,22 @@
    //  x13 (a3): 1..10
    //  x14 (a4): Sum
    // 
-   // commenting out ASM from chapter 4, leaving in for posterity
-   // there are two non-original triple commented lines to test for writes to x0
-   // m4_asm(ADDI, x14, x0, 0)             // Initialize sum register a4 with 0
-   // m4_asm(ADDI, x12, x0, 1010)          // Store count of 10 in register a2.
-   // m4_asm(ADDI, x13, x0, 1)             // Initialize loop count register a3 with 0
-   // // Loop:
-   // m4_asm(ADD, x14, x13, x14)           // Incremental summation
-   // m4_asm(ADDI, x13, x13, 1)            // Increment loop count by 1
-   // m4_asm(BLT, x13, x12, 1111111111000) // If a3 is less than a2, branch to label named <loop>
-   // // // testing adding to x0
-   // // // m4_asm(ADDI, x0, x13, 1)
-   // // Test result value in x14, and set x31 to reflect pass/fail.
-   // m4_asm(ADDI, x30, x14, 111111010100) // Subtract expected value of 44 to set x30 to 1 if and only iff the result is 45 (1 + 2 + ... + 9).
-   // m4_asm(BGE, x0, x0, 0) // Done. Jump to itself (infinite loop). (Up to 20-bit signed immediate plus implicit 0 bit (unlike JALR) provides byte address; last immediate bit should also be 0)
-   // m4_asm_end()
-   // m4_define(['M4_MAX_CYC'], 50)
+   m4_asm(ADDI, x14, x0, 0)             // Initialize sum register a4 with 0
+   m4_asm(ADDI, x12, x0, 1010)          // Store count of 10 in register a2.
+   m4_asm(ADDI, x13, x0, 1)             // Initialize loop count register a3 with 0
+   // Loop:
+   m4_asm(ADD, x14, x13, x14)           // Incremental summation
+   m4_asm(ADDI, x13, x13, 1)            // Increment loop count by 1
+   m4_asm(BLT, x13, x12, 1111111111000) // If a3 is less than a2, branch to label named <loop>
+   // testing adding to x0
+   // m4_asm(ADDI, x0, x13, 1)
+   // Test result value in x14, and set x31 to reflect pass/fail.
+   m4_asm(ADDI, x30, x14, 111111010100) // Subtract expected value of 44 to set x30 to 1 if and only iff the result is 45 (1 + 2 + ... + 9).
+   m4_asm(BGE, x0, x0, 0) // Done. Jump to itself (infinite loop). (Up to 20-bit signed immediate plus implicit 0 bit (unlike JALR) provides byte address; last immediate bit should also be 0)
+   m4_asm_end()
+   m4_define(['M4_MAX_CYC'], 50)
    //---------------------------------------------------------------------------------
 
-   m4_test_prog()
 
 
 \SV
@@ -126,47 +123,10 @@
    $is_addi = $dec_bits ==? 11'bx_000_0010011;
    $is_add = $dec_bits == 11'b0_000_0110011;
    
-   // set up more decodes for chapter 5 
-   $is_lui = $opcode == 7'b0110111;
-   $is_auipc = $opcode == 7'b0010111;
-   $is_jal = $opcode == 7'b1101111;
-   $is_jalr = $dec_bits ==? 11'bx_000_1100111;
-   $is_slti = $dec_bits ==? 11'bx_010_0010011;
-   $is_sltui = $dec_bits ==? 11'bx_011_0010011;
-   $is_xori = $dec_bits ==? 11'bx_100_0010011;
-   $is_ori = $dec_bits ==? 11'bx_110_0010011;
-   $is_andi = $dec_bits ==? 11'bx_111_0010011;
-   $is_slli = $dec_bits == 11'b0_001_0010011;
-   $is_srli = $dec_bits == 11'b0_101_0010011;
-   $is_sral = $dec_bits == 11'b1_101_0010011;
-   $is_sub = $dec_bits == 11'b1_000_0110011;
-   $is_sll = $dec_bits == 11'b0_001_0110011;
-   $is_slt = $dec_bits == 11'b0_010_0110011;
-   $is_sltu = $dec_bits == 11'b0_011_0110011;
-   $is_xor = $dec_bits == 11'b0_100_0110011;
-   $is_srl = $dec_bits == 11'b0_101_0110011;
-   $is_sra = $dec_bits == 11'b1_101_0110011;
-   $is_or = $dec_bits == 11'b0_110_0110011;
-   $is_and = $dec_bits == 11'b0_111_0110011;
-   
-   $is_load = $opcode == 7'b0000011; 
-   
    // setup ALU
    $result[31:0] = $is_addi ? $src1_value + $imm :
                    $is_add ? $src1_value + $src2_value :
                    32'b0;
-   
-   // more ALU logic from chapter 5
-   // SLTU and SLTI (set if less tha, unsigned) results:
-   $sltu_rslt[31:0] = {31'b0, $src1_value < $src2_value};
-   $sltiu_rslt[31:0] = {31'b0, $src1_value < $imm};
-   
-   // SRA and SRAI (shift right, arithmetic) results:
-   // sign-extended src1
-   $sext_src1[63:0] = { {32{$src1_value[31]}}, $src1_value };
-   // 64-bit sign-extended results, to be truncated
-   $sra_rslt[63:0] = $sext_src1 >> $src2_value[4:0];
-   $srai_rslt[63:0] = $sext_src1 >> $imm[4:0];
    
    // setup branches
    $taken_br = $is_beq ? $src1_value == $src2_value :
